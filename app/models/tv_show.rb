@@ -1,0 +1,1 @@
+class TvShow < NetflixTitle; end
