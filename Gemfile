@@ -30,6 +30,7 @@ gem 'awesome_print'
 gem 'mechanize'
 gem 'dotenv-rails'
 gem 'watir'
+gem 'webdrivers'
 gem 'rubocop'
 
 group :development, :test do
