@@ -1,9 +1,9 @@
 class GenreTitleLinker
-  def self.run
+  def self.run(type = 'NetflixTitle')
     browser = Watir::Browser.new :firefox, headless: false
     browser.goto('https://www.netflix.com/cl-en/login')
     login_netflix(browser)
-    iterate_on_titles(browser)
+    iterate_on_titles(browser, type)
     browser.close
   end
 
@@ -15,29 +15,31 @@ class GenreTitleLinker
     browser.goto(profile)
   end
 
-  def self.iterate_on_titles(browser)
+  def self.iterate_on_titles(browser, type)
     browser.button(class: 'searchTab').click
     # Get all the titles with no genre associations
-    titles = NetflixTitle.with_no_genres
+    title_type = Object.const_get(type)
+    titles = title_type.with_no_genres
     titles.each_with_index do |title, index|
-      ap "Proccesing title #{index + 1}/#{titles.length}"
+      ap "Proccesing #{type} #{index + 1}/#{titles.length}"
       process_title(title, browser)
     end
   end
 
   def self.process_title(title, browser)
     browser.text_field('data-uia' => 'search-box-input').set(title.name)
-    sleep 2
     result_xpath = '//div[@id="row-0"]//div[contains(@class,"slider-item-0")]'
-    result = wait_for_div(result_xpath, browser)
+    wait_for_div(result_xpath, browser)
     return unless result.present?
-    show_details(browser, result, result_xpath)
+    show_details(browser, result_xpath)
     process_html(title, browser.html)
+  rescue StandardError => e
+    ap "Processing failed: #{e.message}"
   end
 
-  def self.show_details(browser, _result, xpath)
+  def self.show_details(browser, xpath)
     sleep 2
-    result = wait_for_div(xpath, browser)
+    result = browser.div(xpath: xpath)
     result.hover
     browser.link(class: 'bob-jaw-hitzone').click
     sleep 2
@@ -45,18 +47,66 @@ class GenreTitleLinker
 
   def self.process_html(title, html)
     page = Nokogiri::HTML(html)
-    return if bad_result(page, title)
+    check_result_and_update(title, page)
+  end
+
+  def self.check_result_and_update(title, page)
+    scraped_name = scrape_title_name(page)
+    return if Genre.find_by(name: scraped_name)
+    if wrong_name?(scraped_name, title)
+      ap 'Enter action'
+      action = gets.chomp
+      return if action != 'y'
+      correct_title_name(page, title)
+    end
+    update_title(title, page)
+  end
+
+  def self.update_title(title, page)
     title_data = scrape_title_data(page)
     genres = Genre.where(id: title_data[:genre_ids])
     title.genres = genres
+    title.update(code: title_data[:code])
+  end
+
+  def self.correct_title_name(page, title)
+    result_name = scrape_title_name(page)
+    return if NetflixTitle.find_by(name: result_name)
+    title.name = result_name
+    title.save
   end
 
   def self.scrape_title_data(page)
-    genres = page.xpath('//p[contains(@class,"genres")]
+    {
+      genre_ids: scrape_genres(page),
+      code: scrape_title_code(page)
+    }
+  end
+
+  def self.scrape_genres(page)
+    page.xpath('//p[contains(@class,"genres")]
                         /span[@class="list-items"]/a/@href')
-                 .map(&:content)
-                 .map { |l| l.split('/').last }
-    { genre_ids: genres }
+        .map(&:content)
+        .map { |l| l.split('/').last }
+  end
+
+  def self.scrape_title_code(page)
+    page.at_xpath('//a[@class="jawbone-title-link"]/@href')
+        .content
+        .split('/')
+        .last
+        .to_i
+  rescue StandardError
+    nil
+  end
+
+  def self.scrape_title_name(page)
+    result = page.at_xpath('//a[@class="jawbone-title-link"]')
+    if result.content.blank?
+      result.at_xpath('.//img/@alt').content
+    else
+      result.content
+    end
   end
 
   # util
@@ -71,16 +121,9 @@ class GenreTitleLinker
     nil
   end
 
-  def self.bad_result(page, title)
-    result = page.at_xpath('//a[@class="jawbone-title-link"]')
-    result_name = if result.content.blank?
-                    result.at_xpath('.//img/@alt').content
-                  else
-                    result.content
-                  end
-    ap "Found #{result_name}/ Expected #{title.name}[#{title.id}]"
-    !result_name.casecmp(title.name).zero? # Check if found equals to searched
-  rescue StandardError
-    true
+  def self.wrong_name?(scraped_name, title)
+    # Check if found equals to searched
+    ap "Found #{scraped_name}/ Expected #{title.name}[#{title.id}]"
+    !scraped_name.casecmp(title.name).zero?
   end
 end
