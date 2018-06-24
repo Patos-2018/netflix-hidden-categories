@@ -30,7 +30,6 @@ class GenreTitleLinker
     browser.text_field('data-uia' => 'search-box-input').set(title.name)
     result_xpath = '//div[@id="row-0"]//div[contains(@class,"slider-item-0")]'
     wait_for_div(result_xpath, browser)
-    return unless result.present?
     show_details(browser, result_xpath)
     process_html(title, browser.html)
   rescue StandardError => e
