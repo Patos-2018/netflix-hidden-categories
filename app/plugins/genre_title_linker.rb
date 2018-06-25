@@ -1,6 +1,6 @@
 class GenreTitleLinker
   def self.run(type = 'NetflixTitle')
-    browser = Watir::Browser.new :firefox, headless: false
+    browser = Watir::Browser.new :chrome, headless: false
     browser.goto('https://www.netflix.com/cl-en/login')
     login_netflix(browser)
     iterate_on_titles(browser, type)
@@ -28,20 +28,23 @@ class GenreTitleLinker
 
   def self.process_title(title, browser)
     browser.text_field('data-uia' => 'search-box-input').set(title.name)
-    result_xpath = '//div[@id="row-0"]//div[contains(@class,"slider-item-0")]'
-    wait_for_div(result_xpath, browser)
-    show_details(browser, result_xpath)
+    result_id = 'title-card-0-0'
+    wait_for_div(result_id, browser)
+    show_details(browser, result_id)
     process_html(title, browser.html)
   rescue StandardError => e
     ap "Processing failed: #{e.message}"
+    ap e.backtrace[0..9]
   end
 
-  def self.show_details(browser, xpath)
-    sleep 2
-    result = browser.div(xpath: xpath)
+  def self.show_details(browser, div_id)
+    sleep 1
+    result = browser.div(id: div_id)
     result.hover
     browser.link(class: 'bob-jaw-hitzone').click
-    sleep 2
+    sleep 1
+    browser.li(id: 'tab-ShowDetails').click
+    wait_for_genres(browser)
   end
 
   def self.process_html(title, html)
@@ -50,43 +53,45 @@ class GenreTitleLinker
   end
 
   def self.check_result_and_update(title, page)
-    scraped_name = scrape_title_name(page)
-    return if Genre.find_by(name: scraped_name)
-    if wrong_name?(scraped_name, title)
+    title_data = scrape_title_data(page)
+    if wrong_result?(title_data, title)
       ap 'Enter action'
-      action = gets.chomp
+      action = '' # gets.chomp
       return if action != 'y'
-      correct_title_name(page, title)
+      correct_title_name(title_data, title)
     end
-    update_title(title, page)
+    update_title(title, title_data)
   end
 
-  def self.update_title(title, page)
-    title_data = scrape_title_data(page)
-    genres = Genre.where(id: title_data[:genre_ids])
-    title.genres = genres
+  def self.update_title(title, title_data)
+    genres = get_genres(title_data[:genres])
+    title.genres = genres unless genres.blank?
     title.update(code: title_data[:code])
   end
 
-  def self.correct_title_name(page, title)
-    result_name = scrape_title_name(page)
-    return if NetflixTitle.find_by(name: result_name)
-    title.name = result_name
+  def self.correct_title_name(title_data, title)
+    return if NetflixTitle.find_by(name: title_data[:name])
+    title.name = title_data[:name]
     title.save
   end
 
   def self.scrape_title_data(page)
     {
-      genre_ids: scrape_genres(page),
+      genres: scrape_title_genres(page),
+      name: scrape_title_name(page),
       code: scrape_title_code(page)
     }
   end
 
-  def self.scrape_genres(page)
-    page.xpath('//p[contains(@class,"genres")]
-                        /span[@class="list-items"]/a/@href')
-        .map(&:content)
-        .map { |l| l.split('/').last }
+  def self.scrape_title_genres(page)
+    page.xpath('//h4[text()="Géneros"]
+                /following-sibling::ul/li/a')
+        .map do |l|
+          {
+            id: l.at_xpath('./@href').content.split('/').last,
+            name: l.content
+          }
+        end
   end
 
   def self.scrape_title_code(page)
@@ -110,19 +115,33 @@ class GenreTitleLinker
 
   # util
 
-  def self.wait_for_div(div_xpath, browser, max_time = 5)
-    sleep 1
-    max_time.times do
-      result = browser.div(xpath: div_xpath)
-      return result if result.present? && result.visible?
-      sleep 1
+  def self.get_genres(genres_data)
+    genres = []
+    genres_data.each do |genre_data|
+      genre = Genre.create_with(name: genre_data[:name])
+                   .find_or_create_by(id: genre_data[:id])
+      genres << genre
     end
-    nil
+    genres
   end
 
-  def self.wrong_name?(scraped_name, title)
-    # Check if found equals to searched
-    ap "Found #{scraped_name}/ Expected #{title.name}[#{title.id}]"
-    !scraped_name.casecmp(title.name).zero?
+  def self.wait_for_div(div_id, browser, max_time = 5)
+    max_time.times do
+      return if browser.div(id: div_id).present?
+      sleep 1
+    end
+  end
+
+  def self.wait_for_genres(browser, max_time = 5)
+    max_time.times do
+      return if browser.div(class: 'detailsTags').present?
+      sleep 1
+    end
+  end
+
+  def self.wrong_result?(title_data, title)
+    ap "Found #{title_data[:name]}/ Expected #{title.name}[#{title.id}]"
+    return title_data[:code] != title.code if title.code.present?
+    !title_data[:name].casecmp(title.name).zero?
   end
 end
