@@ -1,5 +1,6 @@
 class GenreTitleLinker
   def self.run(type = 'NetflixTitle')
+    Watir.default_timeout = 5
     browser = Watir::Browser.new :chrome, headless: false
     browser.goto('https://www.netflix.com/cl-en/login')
     login_netflix(browser)
@@ -16,7 +17,6 @@ class GenreTitleLinker
   end
 
   def self.iterate_on_titles(browser, type)
-    browser.button(class: 'searchTab').click
     # Get all the titles with no genre associations
     title_type = Object.const_get(type)
     titles = title_type.with_no_genres
@@ -27,7 +27,9 @@ class GenreTitleLinker
   end
 
   def self.process_title(title, browser)
-    browser.text_field('data-uia' => 'search-box-input').set(title.name)
+    search_box = browser.text_field('data-uia' => 'search-box-input')
+    browser.button(class: 'searchTab').click unless search_box.present?
+    search_box.set(title.name)
     result_id = 'title-card-0-0'
     wait_for_div(result_id, browser)
     show_details(browser, result_id)
@@ -38,13 +40,25 @@ class GenreTitleLinker
   end
 
   def self.show_details(browser, div_id)
-    sleep 1
+    max_times = 3
+    begin
+      sleep 2
+      try_to_show_details(browser, div_id)
+      wait_for_genres(browser)
+    rescue StandardError
+      max_times -= 1
+      ap "RETRY ##{3 - max_times}"
+      browser.refresh
+      retry unless max_times.zero?
+    end
+  end
+
+  def self.try_to_show_details(browser, div_id)
     result = browser.div(id: div_id)
-    result.hover
-    browser.link(class: 'bob-jaw-hitzone').click
-    sleep 1
-    browser.li(id: 'tab-ShowDetails').click
-    wait_for_genres(browser)
+    result.hover if result.present?; sleep 1
+    details_button = browser.li(id: 'tab-ShowDetails')
+    browser.link(class: 'bob-jaw-hitzone').click unless details_button.present?
+    sleep 1; details_button.click
   end
 
   def self.process_html(title, html)
@@ -137,6 +151,7 @@ class GenreTitleLinker
       return if browser.div(class: 'detailsTags').present?
       sleep 1
     end
+    raise StandardError.new, 'No genres loaded'
   end
 
   def self.wrong_result?(title_data, title)
