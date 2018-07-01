@@ -4,7 +4,7 @@ module Api
 
       def index
         @search = Genre.search {fulltext params[:w]}
-        render :json => @search.results
+        render :json => @search.results.to_json( :only => [:name] )
       end
 
     end
