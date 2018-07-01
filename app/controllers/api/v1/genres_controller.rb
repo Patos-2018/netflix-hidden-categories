@@ -3,8 +3,8 @@ module Api
     class GenresController < ApplicationController
 
       def index
-        @genres = Genre.all
-        render :json => @genres.to_json
+        @search = Genre.search {fulltext params[:w]}
+        render :json => @search.results
       end
 
     end
