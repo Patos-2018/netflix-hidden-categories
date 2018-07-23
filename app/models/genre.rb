@@ -7,6 +7,7 @@ class Genre < ApplicationRecord
     string :sort_title do |genre|
       genre.name.downcase
     end
+    integer :netflix_titles_count
   end
 
   def self.with_titles
