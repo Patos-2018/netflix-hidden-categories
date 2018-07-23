@@ -2,6 +2,14 @@ class Genre < ApplicationRecord
   has_and_belongs_to_many :netflix_titles
   before_save :update_counter
 
+  searchable do
+    text :name
+    string :sort_title do |genre|
+      genre.name.downcase
+    end
+    integer :netflix_titles_count
+  end
+
   def self.with_titles
     joins(:netflix_titles).group('genres.id')
                           .having('count(genre_id) > 0')
