@@ -6,13 +6,11 @@ module Api
         @search = Genre.search do
           fulltext params[:w]
           paginate page: 1, per_page: params[:limit]
+          if params[:sort_by] == 'abc'
+            order_by :sort_title
+          end
         end
-        show_fields = { only: [:name] }
-        if params[:titles_q] == 'true'
-          show_fields = { only: [:name, :id] }
-        end
-
-        render :json => @search.results.to_json( show_fields )
+        render :json => @search.results.to_json( )
       end
 
     end

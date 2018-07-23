@@ -3,6 +3,9 @@ class Genre < ApplicationRecord
 
   searchable do
     text :name
+    string :sort_title do |genre|
+      genre.name.downcase
+    end
   end
 
   def self.with_titles
