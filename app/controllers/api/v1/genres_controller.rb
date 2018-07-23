@@ -7,7 +7,12 @@ module Api
           fulltext params[:w]
           paginate page: 1, per_page: params[:limit]
         end
-        render :json => @search.results.to_json( :only => [:name] )
+        show_fields = { only: [:name] }
+        if params[:titles_q] == 'true'
+          show_fields = { only: [:name, :id] }
+        end
+
+        render :json => @search.results.to_json( show_fields )
       end
 
     end
