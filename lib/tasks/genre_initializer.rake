@@ -6,4 +6,12 @@ namespace :genre_initializer do
       genre.save
     end
   end
+
+  desc 'Uri generator for genre'
+  task :uri_generator => :environment do
+    uri_base = 'https://www.netflix.com/browse/genre/'
+    Genre.all.each do |genre|
+      genre.update(uri: uri_base + genre.id.to_s)
+    end
+  end
 end
