@@ -1,4 +1,9 @@
 class NetflixTitle < ApplicationRecord
+
+  searchable do
+    text :name
+  end
+
   has_and_belongs_to_many :genres
   validates :name, presence: true
   validates :type, presence: true
