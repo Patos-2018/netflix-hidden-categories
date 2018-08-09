@@ -33,8 +33,8 @@ gem 'watir'
 gem 'webdrivers'
 gem 'rubocop'
 
-gem 'sunspot_rails'
-gem 'sunspot_solr'
+gem 'sunspot_rails', github: 'sunspot/sunspot', branch: 'master'
+gem 'sunspot_solr', github: 'sunspot/sunspot', branch: 'master'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
