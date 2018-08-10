@@ -13,8 +13,17 @@ module Api
           fields = { only: [:name, :id, :uri] }
         end
         
-        page_limit = Integer(params[:limit]) - 1
-        render :json => @search.results[0].genres[0..page_limit].to_json( fields )
+        if params[:limit].nil?
+          page_limit = 30
+        else
+          page_limit = Integer(params[:limit]) - 1
+        end
+
+        if @search.results[0].nil?
+          head :ok
+        else
+          render :json => @search.results[0].genres[0..page_limit].to_json( fields )
+        end
       end
 
     end
