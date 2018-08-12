@@ -19,3 +19,6 @@
 
 .byebug_history
 .env
+
+# Ignore all solr files
+solr/

@@ -1,24 +1,14 @@
-# README
+## Queries disponibles
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+### /genres
+* w: Texto a buscar
+* sort_by: Orden de los resultados
+* * abc: Orden alfabetico
+* * nTitles: Cantidad de titulos relacionados al genero
+* limit: Maximo de resultados
+* titles_q: Si es 'true' devuelve la cantidad de titulos relacionados al genero
 
-Things you may want to cover:
-
-* Ruby version
-
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+### /movies
+* w: Texto a buscar
+* limit: Maximo de resultados
+* titles_q: Si es 'true' devuelve la cantidad de titulos relacionados al genero
