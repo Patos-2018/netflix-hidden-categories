@@ -1,7 +1,6 @@
 module Api
   module V1
     class GenresController < ApplicationController
-
       def index
         @search = Genre.search do
           fulltext params[:w]
@@ -11,17 +10,20 @@ module Api
           elsif params[:sort_by] == 'nTitles'
             order_by :netflix_titles_count, :desc
           end
+
+          if params[:active_genres] == 'true'
+            with(:netflix_titles_count).greater_than 0
+          end
         end
 
-        if params[:titles_q] == 'true'
-          fields = { only: [:name, :id, :uri, :netflix_titles_count] }
-        else
-          fields = { only: [:name, :id, :uri] }
-        end
+        fields = if params[:titles_q] == 'true'
+                   { only: %i[name id uri netflix_titles_count] }
+                 else
+                   { only: %i[name id uri] }
+                 end
 
-        render :json => @search.results.to_json( fields )
+        render json: @search.results.to_json(fields)
       end
-
     end
   end
 end
