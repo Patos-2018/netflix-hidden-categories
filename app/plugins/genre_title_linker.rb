@@ -19,7 +19,7 @@ class GenreTitleLinker
   def self.iterate_on_titles(browser, type)
     # Get all the titles with no genre associations
     title_type = Object.const_get(type)
-    titles = title_type.with_no_genres
+    titles = title_type.with_genres
     titles.each_with_index do |title, index|
       ap "Proccesing #{type} #{index + 1}/#{titles.length}"
       process_title(title, browser)
